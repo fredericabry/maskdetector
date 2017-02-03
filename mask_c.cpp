@@ -85,21 +85,8 @@ void Mask::setImg(QImage img)
 
     image = img.copy();
 
-
-
-    /* for (int xi = 0;xi<res;xi++)
-        for(int yi = 0;yi<res;yi++)
-            markedZone[xi][yi] = false;*/
-
-    resetDetection( );
     redraw();
 }
-
-void Mask::resetDetection(void)
-{
-
-}
-
 
 void Mask::saveZones(void)
 {
@@ -183,8 +170,8 @@ void Mask::redraw()
         return;
     }
 
-    int dy = rect.height()/res;
-    int dx = rect.width()/res;
+    int dy = height()/res;
+    int dx = width()/res;
 
     for (int i = 1;i<= res;i++)
     {

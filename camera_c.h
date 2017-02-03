@@ -9,6 +9,8 @@
 #include "qdebug.h"
 #include "opencv2/videoio.hpp"
 #include "mainwindow.h"
+#include "qmutex.h"
+
 
 class Mask;
 
@@ -17,10 +19,42 @@ using namespace cv;
 
 
 
+class camera_c;
 
 
 
+class cameraConsumer_c:public QThread
+{
+    Q_OBJECT
+public:
+    void run() Q_DECL_OVERRIDE;
+    cameraConsumer_c(QObject *parent,camera_c *controler, int width, int heigth, int res, int threshold, int thresholdZone);
+    void checkZones(void);
+    int getZoneValue(int X,int Y);
+    Mat imageDiff;
+    QImage qImageDiff;
+    QPixmap pixmapImageDiff;
 
+
+private:
+    QObject *parent;
+    camera_c *controler;
+    int width;
+    int height;
+    int dx;
+    int dy;
+    int res;
+    int threshold;
+    int thresholdZone;
+signals:
+    void setMarkerVisible(int,int,bool);
+    void dataReady(int);
+private slots:
+    void process(void);
+    void dataReceived(void);
+    void setSize(int w, int h);
+
+};
 
 
 
@@ -41,21 +75,27 @@ public:
     void update(void);
     void init(void);
     void checkZones(void);
-    Mat image;
+
     Mat imageSnap;
     Mat imageDiff;
-    QImage qImage;
+    Mat image;
+    cv::Mat buf;
+
+    cameraConsumer_c *consumer;
+
+
     QImage qImageSnap;
     QImage qImageDiff;
 
-    QPixmap pixmapImage;
-    QPixmap pixmapImageSnap;
     QPixmap pixmapImageDiff;
+
+    QMutex computing;
 
     void shutdown(void);
 
 
 private:
+
     int width;
     int height;
     int dx;
@@ -67,11 +107,14 @@ private:
 signals:
     void dataReady(int);
     void setMarkerVisible(int,int,bool);
+    void setSize(int,int);
+    void startProcess();
 public slots:
     int getZoneValue(int X,int Y);
 
 private slots:
     void snap(void)    ;
+
 
 };
 #endif // CAMERA_C_H

@@ -18,8 +18,8 @@
 #include "qtimer.h"
 
 //#define resolution 20
-#define WIDTH 500
-#define HEIGHT 500
+#define WIDTH 640
+#define HEIGHT 480
 
 
 
@@ -40,7 +40,11 @@ void mark::show2(void)
     QTimer::singleShot(5000,this,SLOT(hide()));
 }
 
-
+void mark::hide2(void)
+{
+    hide();
+    //QTimer::singleShot(5000,this,SLOT(hide()));
+}
 
 void MainWindow::updateDisplay(bool show)
 {
@@ -63,13 +67,10 @@ void MainWindow::updateDisplay(bool show)
 
 void MainWindow::init()
 {
+    int w,h;
 
     exposition = ui->spinExposition->value();
     if(exposition <= 0) exposition = 1;
-
-
-
-
 
     // open capture
     int descriptor = v4l2_open("/dev/video0", O_RDWR);
@@ -83,8 +84,6 @@ void MainWindow::init()
     c.id = V4L2_CID_EXPOSURE_ABSOLUTE;
     c.value = exposition;
     v4l2_ioctl(descriptor, VIDIOC_S_CTRL, &c);
-
-
 
 
 
@@ -114,39 +113,49 @@ void MainWindow::init()
     lbl_imageDiff->setStyleSheet("border: 2px solid black");
     lbl_imageDiff->show();
 
+    markers.resize( resolution ,std::vector<mark*>( resolution , NULL ) );
+
+    w = ui->spinWidth->value();
+    h = ui->spinHeight->value();
+
+    cam = new camera_c(this,w,h,resolution,threshold,thresholdZone);
+   // cam = new camera_c(this,WIDTH,HEIGHT,resolution,threshold,thresholdZone);
+    cam->start();
+   // connect(cam,SIGNAL(setSize(int,int)),this,SLOT(setSize(int,int)));
+
+    setSize(WIDTH,HEIGHT);
+}
 
 
-    QRect rect2(40 + WIDTH, 20, WIDTH,HEIGHT);
+
+void MainWindow::setSize(int w, int h)
+{
+
+    int dx = w/resolution;
+    int dy = h/resolution;
+
+    QRect rect2(40 , 20, w,h);
     lbl_imageSnap->setGeometry(rect2);
-    QRect rect3(60+2*WIDTH, 20, WIDTH,HEIGHT);
+    QRect rect3(60+w, 20, w,h);
     lbl_imageDiff->setGeometry(rect3);
 
 
-
-
-    markers.resize( resolution ,std::vector<mark*>( resolution , NULL ) );
-
-    int dx = WIDTH/resolution;
-    int dy = HEIGHT/resolution;
 
     for (int xi = 0;xi<resolution;xi++)
     {
         for (int yi = 0;yi<resolution;yi++)
         {
-            markers[xi][yi] = new mark(this,dx/2 + 40 + WIDTH+xi*dx,dy/2+20+yi*dx,5);
+            markers[xi][yi] = new mark(this,dx/2 + 40+xi*dx,dy/2+20+yi*dy,5);
             markers[xi][yi]->hide();
 
         }
     }
 
-
-
-    cam = new camera_c(this,WIDTH,HEIGHT,resolution,threshold,thresholdZone);
-    cam->start();
-
-
+    lbl_imageSnap->redraw();
 
 }
+
+
 
 void MainWindow::restart()
 {
@@ -180,7 +189,7 @@ void MainWindow::setMarkerVisible(int x,int y,bool status)
     if(status)
         markers[x][y]->show();
     else
-        markers[x][y]->hide();
+        markers[x][y]->hide2();
 }
 
 void MainWindow::clearDetected(void)
@@ -207,14 +216,23 @@ void MainWindow::dataAvailable(int type)
     else if(type==2)
     {
         //lbl_imageSnap->setText("test");
-        lbl_imageSnap->setImg(cam->qImageSnap);
+        QImage img2 = cam->qImageSnap.scaled(WIDTH,HEIGHT,Qt::KeepAspectRatio);
+        lbl_imageSnap->setImg(img2);
         clearDetected();
 
     }
     else if(type==3)
     {
+
         if(ui->radioDisplay->isChecked())
-        lbl_imageDiff->setPixmap(cam->pixmapImageDiff);
+        {
+        QPixmap img2 = cam->consumer->pixmapImageDiff.scaled(WIDTH,HEIGHT,Qt::KeepAspectRatio);
+        lbl_imageDiff->setPixmap(img2);
+
+        }
+        emit acknowledgeData();
+
+
     }
 }
 

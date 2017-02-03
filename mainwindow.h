@@ -26,6 +26,7 @@ public:
     int size;
 public slots:
     void show2(void);
+    void hide2(void);
 
 };
 
@@ -68,10 +69,11 @@ private slots:
     void restart(void);
     void init(void);
     void updateDisplay(bool show);
-
+    void setSize(int w, int h);
 
 signals:
     void snap(void)    ;
+    void acknowledgeData(void);
 
 };
 
