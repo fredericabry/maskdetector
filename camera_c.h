@@ -17,18 +17,14 @@ class Mask;
 
 using namespace cv;
 
-
-
 class camera_c;
-
-
 
 class cameraConsumer_c:public QThread
 {
     Q_OBJECT
 public:
     void run() Q_DECL_OVERRIDE;
-    cameraConsumer_c(QObject *parent,camera_c *controler, int width, int heigth, int res, int threshold, int thresholdZone);
+    cameraConsumer_c(QObject *parent,camera_c *controler, int width, int heigth, int resolution, int threshold, int thresholdZone);
     void checkZones(void);
     int getZoneValue(int X,int Y);
     Mat imageDiff;
@@ -41,25 +37,22 @@ private:
     camera_c *controler;
     int width;
     int height;
-    int dx;
-    int dy;
-    int res;
+    const int resolution;
     int threshold;
     int thresholdZone;
+
+
 signals:
-    void setMarkerVisible(int,int,bool);
+    void setMarkerVisible(uint,uint,bool);
     void dataReady(int);
 private slots:
     void process(void);
     void dataReceived(void);
     void setSize(int w, int h);
 
+
+
 };
-
-
-
-
-
 
 
 class camera_c:public QThread
@@ -67,46 +60,40 @@ class camera_c:public QThread
     Q_OBJECT
 public:
     void run() Q_DECL_OVERRIDE;
-    camera_c(QObject *parent, int width, int heigth, int res, int threshold, int thresholdZone);
+    camera_c(QObject *parent, int width, int heigth, int resolution, int threshold, int thresholdZone);
     ~camera_c(void);
     QObject *parent;
     bool running;
     VideoCapture *capture;
     void update(void);
     void init(void);
-    void checkZones(void);
 
     Mat imageSnap;
     Mat imageDiff;
     Mat image;
     cv::Mat buf;
-
     cameraConsumer_c *consumer;
-
-
     QImage qImageSnap;
     QImage qImageDiff;
-
     QPixmap pixmapImageDiff;
-
     QMutex computing;
-
     void shutdown(void);
-
+    double dx;
+    double dy;
+    bool enabled;
 
 private:
 
     int width;
     int height;
-    int dx;
-    int dy;
-    int res;
+
+    const int resolution;
     int threshold;
     int thresholdZone;
 
 signals:
     void dataReady(int);
-    void setMarkerVisible(int,int,bool);
+    void triggerSignal();
     void setSize(int,int);
     void startProcess();
 public slots:
@@ -114,6 +101,7 @@ public slots:
 
 private slots:
     void snap(void)    ;
+    void enable(bool);
 
 
 };

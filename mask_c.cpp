@@ -3,63 +3,104 @@
 #include "qimage.h"
 #include "qdebug.h"
 #include "qpainter.h"
+#include "mainwindow.h"
+#include "QtGlobal"
 
 
 
 
 
 
-
-
-Mask::Mask(QWidget *parent,int res) : QLabel(parent),res(res)
+Mask::Mask(QWidget *parent, int res,bool loadFile) : QLabel(parent),resolution(res),loadFile(loadFile)
 {
     markedZone.resize( res ,std::vector<bool>( res , false ) );
-    //detectedZone.resize( res ,std::vector<bool>( res , false ) );
 }
 
-
-void Mask::mousePressEvent(QMouseEvent *event)
+void Mask::mouseReleaseEvent(QMouseEvent *event)
 {
+
     int x=event->x();
     int y=event->y();
 
-    if (res<=0)
+    if((x<0)||(y<0)||(x>width())||(y>height()))
+        return;
+
+
+
+    if((dx <= 0)||(dy<=0)) return;
+
+    int X0,Y0,X1,Y1;
+
+    X0 = click_x/dx;
+    Y0 = click_y/dy;
+
+    X1 = x/dx;
+    Y1 = y/dy;
+
+    bool state = markedZone[X0][Y0];
+
+    if((X1<resolution)&&(Y1<resolution)&&(X0<resolution)&&(Y0<resolution))
     {
 
-        return;
+        if(X1>=X0)
+            for (int i = X0;i<=X1;i++)
+            {
+                if(Y1>=Y0)
+                    for (int j = Y0;j<=Y1;j++)
+                        markedZone[i][j] = state;
+                else
+                    for (int j = Y1;j<=Y0;j++)
+                        markedZone[i][j] = state;
+            }
+        else
+            for (int i = X1;i<=X0;i++)
+            {
+                if(Y1>=Y0)
+                    for (int j = Y0;j<=Y1;j++)
+                        markedZone[i][j] = state;
+                else
+                    for (int j = Y1;j<=Y0;j++)
+                        markedZone[i][j] = state;
+            }
+
+        //   markedZone[X][Y]=!markedZone[X][Y];
+        redraw();
 
     }
 
-    int dx = width()/res;
-    int dy = height()/res;
+
+
+}
+
+void Mask::mousePressEvent(QMouseEvent *event)
+{
+    click_x=event->x();
+    click_y=event->y();
+
+    if (resolution<=0)
+        return;
+
+
 
     if((dx > 0)&&(dy>0))
     {
         int X,Y;
 
-        X = x/dx;
-        Y = y/dy;
-        emit clickZone(X,Y);
+        X = click_x/dx;
+        Y = click_y/dy;
 
-        if((X<res)&&(Y<res))
+        if((X<resolution)&&(Y<resolution))
         {
-
             markedZone[X][Y]=!markedZone[X][Y];
             redraw();
-
         }
-
-
-
-
     }
-
 }
 
 void Mask::selectAllZones(void)
 {
-    for (int xi = 0;xi<res;xi++)
-        for (int yi = 0;yi<res;yi++)
+    for (int xi = 0;xi<resolution;xi++)
+        for (int yi = 0;yi<resolution;yi++)
         {
 
             markedZone[xi][yi] = true;
@@ -70,8 +111,8 @@ void Mask::selectAllZones(void)
 
 void Mask::unselectAllZones(void)
 {
-    for (int xi = 0;xi<res;xi++)
-        for (int yi = 0;yi<res;yi++)
+    for (int xi = 0;xi<resolution;xi++)
+        for (int yi = 0;yi<resolution;yi++)
         {
 
             markedZone[xi][yi] = false;
@@ -85,13 +126,16 @@ void Mask::setImg(QImage img)
 
     image = img.copy();
 
+    if(loadFile)
+    loadZones();
+
+
     redraw();
 }
 
 void Mask::saveZones(void)
 {
-
-    QFile file("zones.txt");
+    QFile file(((MainWindow*)parent())->zoneFileName);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
         qDebug()<<"cannot open zones file";
@@ -101,45 +145,56 @@ void Mask::saveZones(void)
     file.resize(0);
 
     QTextStream out(&file);
-    for (int xi = 0;xi<res;xi++)
-        for (int yi = 0;yi<res;yi++)
-        {
 
+    out << "res="<<QString::number(resolution)<<"\n";
+
+    for (int xi = 0;xi<resolution;xi++)
+        for (int yi = 0;yi<resolution;yi++)
+        {
             if(markedZone[xi][yi])
                 out << xi<<","<<yi<<"\n";
-
         }
-
-
-
-
 }
 
 void Mask::loadZones(void)
 {
     int x,y;
+    QString line;
+    QStringList fields;
 
-    unselectAllZones();
 
 
-    QFile file("zones.txt");
+    QFile file(((MainWindow*)parent())->zoneFileName);
+
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
         qDebug()<<"cannot open zones file";
         return;
     }
+
+   unselectAllZones();
+
+
+
+    line = file.readLine();
+
+    markedZone.clear();
+    markedZone.resize( resolution ,std::vector<bool>( resolution , false ) );
+
     while(!file.atEnd()) {
-        QString line = file.readLine();
+        line = file.readLine();
         line.remove("\n");
-        QStringList fields = line.split(",");
+
+        fields = line.split(",");
 
         if(fields.length()==2)
         {
             x = fields[0].toInt();
             y = fields[1].toInt();
 
-            if((x>=0)&&(y>=0)&&(x<res)&&(y<<res))
+            if((x>=0)&&(y>=0)&&(x<resolution)&&(y<resolution))
                 markedZone[x][y] = true;
+
         }
     }
 
@@ -147,45 +202,34 @@ void Mask::loadZones(void)
     redraw();
 }
 
-
-
-
-
-
-
-
-
-
-
 void Mask::redraw()
 {
-
     QPixmap pix = QPixmap::fromImage(image);
+
     QPainter painter(&pix);
     QRect rect = pix.rect();
 
-    if (res<=0)
+    if (resolution<=0)
     {
         qDebug()<<"bad resolution";
         return;
     }
 
-    int dy = height()/res;
-    int dx = width()/res;
+    dy = ((double)height()/resolution);
+    dx = ((double)width()/resolution);
 
-    for (int i = 1;i<= res;i++)
+    // qDebug()<<"dx redraw "<<dx;
+
+    for (int i = 1;i<= resolution;i++)
     {
         QLineF line(rect.topLeft().x(), rect.topLeft().y()+dy*i,rect.topRight().x(), rect.topRight().y()+dy*i);
         painter.drawLine(line);
         QLineF line2(rect.topLeft().x()+dx*i, rect.topLeft().y(),rect.topLeft().x()+dx*i, rect.bottomLeft().y());
         painter.drawLine(line2);
     }
-
-
-    for (int xi = 0;xi<res;xi++)
-        for (int yi = 0;yi<res;yi++)
+    for (int xi = 0;xi<resolution;xi++)
+        for (int yi = 0;yi<resolution;yi++)
         {
-
             if(markedZone[xi][yi])
             {
 
@@ -200,38 +244,16 @@ void Mask::redraw()
 
 }
 
-void Mask::showZone(int x, int y)
-{
-    if (res<=0)
-        return;
-
-    int dx = width()/res;
-    int dy = height()/res;
 
 
-    QPixmap pix = pixmap()->copy();
-    QPainter painter(&pix);
-    QRect rect = pix.rect();
-
-
-    QLineF line(rect.topLeft().x()+dx*x, rect.topLeft().y()+dy*y,rect.topLeft().x()+dx*(x+1), rect.topLeft().y()+dy*(y+1));
-    painter.drawLine(line);
-    QLineF line2(rect.topLeft().x()+dx*(x+1),rect.topLeft().y()+dy*y,rect.topLeft().x()+dx*(x), rect.topLeft().y()+dy*(y+1));
-    painter.drawLine(line2);
-
-    setPixmap(pix);
-
-}
 
 bool Mask::isZoneMarked(int x, int y)
 {
-    if((x>=res)|| (y>=res))
+    if((x>=resolution)|| (y>=resolution))
     {
-        qDebug()<<"iszonemarked bug";
+        qDebug()<<"is zonemarked bug";
         return false;
     }
-
     return markedZone[x][y];
-
 }
 

@@ -5,8 +5,11 @@
 #include "qlabel.h"
 
 
+
+
 class mask_c;
 class camera_c;
+class sharedCom;
 
 class Mask;
 
@@ -55,25 +58,37 @@ public:
     Mask *lbl_imageSnap;
     std::vector<std::vector<mark*> > markers;
     int resolution,threshold,thresholdZone,exposition;
-
+    QString zoneFileName;
+    void setUpMarkers(void);
+    void clearMarkers(void);
+    QString imageFileName;
 private:
     Ui::MainWindow *ui;
     camera_c *cam;
-
-
+    int width,height;
+    sharedCom *com;
+    void saveParameters();
+    void loadParameters();
+    void prepZoneFile(QStringList cmdline_args);
+    bool initialStart;
 
 private slots:
-    void dataAvailable(int)    ;
-    void setMarkerVisible(int x,int y,bool status);
+    void dataAvailable(int);
+    void setMarkerVisible(unsigned int x,unsigned int y,bool status);
     void clearDetected(void);
     void restart(void);
     void init(void);
     void updateDisplay(bool show);
     void setSize(int w, int h);
+    void snapAndSave(void);
+    void reset(void);
+
 
 signals:
     void snap(void)    ;
     void acknowledgeData(void);
+    void testCom(char);
+    void reload(void);
 
 };
 

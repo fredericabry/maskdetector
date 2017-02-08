@@ -2,7 +2,7 @@
 #define MASK_C_H
 
 #include "qlabel.h"
-
+#include "qthread.h"
 
 
 
@@ -13,32 +13,28 @@ class Mask:public QLabel
 {
     Q_OBJECT
 public:
-    int res;
-    explicit Mask(QWidget* parent=0, int res=10 );
+    int resolution;
+    explicit Mask(QWidget* parent=0, int resolution=10 , bool loadFile=false);
     void setImg(QImage);
     void redraw(void);
-    void showZone(int x,int y);
-    bool isZoneMarked(int x,int y);
-    bool isZoneDetected(int x,int y);
     void resetDetection(void);
     void markUndetected(int x,int y);
     void markDetected(int x,int y);
-private:
+    int click_x,click_y;
+    double dx,dy;
+    bool loadFile;
+
     std::vector<std::vector<bool> > markedZone;
   //  std::vector<std::vector<bool> > detectedZone;
-
+    bool isZoneMarked(int x, int y);
     QImage image;
-
-
-
-
-
 
 protected:
     void mousePressEvent(QMouseEvent* event);
-
+    void mouseReleaseEvent(QMouseEvent* event);
 signals:
-    void clickZone(int x,int y);
+
+    void setRes(int);
 
 private slots:
     void selectAllZones();

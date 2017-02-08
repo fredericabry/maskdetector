@@ -16,14 +16,16 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     camera_c.cpp \
     util.cpp \
-    mask_c.cpp
+    mask_c.cpp \
+    sharedcom.cpp
 
 
 INCLUDEPATH += /usr/local/include/
 HEADERS  += mainwindow.h \
     camera_c.h \
     util.h \
-    mask_c.h
+    mask_c.h \
+    sharedcom.h
 
 
 

@@ -8,14 +8,20 @@
 #include "qmessagebox.h"
 #include "QKeyEvent"
 #include "QPainter"
-
-
+#include "qfiledialog.h"
+#include "qtimer.h"
 #include <libv4l2.h>
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include "mask_c.h"
 #include "qtimer.h"
+#include "qstringlist.h"
+
+#include "QtGlobal"
+
+#include "sharedcom.h"
+
 
 //#define resolution 20
 #define WIDTH 640
@@ -62,8 +68,82 @@ void MainWindow::updateDisplay(bool show)
 
 }
 
+void MainWindow::snapAndSave(void)
+{
+
+    qDebug()<<"snap";
 
 
+}
+
+void MainWindow::saveParameters(void)
+{
+    QFile param( QCoreApplication::applicationDirPath() +"/"+"config.cfg");
+    if (!param.open(QIODevice::WriteOnly | QIODevice::Text))
+        qDebug()<<"config file not found";
+
+
+    param.resize(0);
+
+    QTextStream out(&param);
+
+    out << "width="<<QString::number(ui->spinWidth->value())<<"\n";
+    out << "height="<<QString::number(ui->spinHeight->value())<<"\n";
+    out << "resolution="<<QString::number(ui->spinRes->value())<<"\n";
+    out << "threshold_zone="<<QString::number(ui->spinThresholdZone->value())<<"\n";
+    out << "threshold_sat="<<QString::number(ui->spinThreshold->value())<<"\n";
+    out << "exposition="<<QString::number(ui->spinExposition->value())<<"\n";
+
+    param.close();
+
+
+    qDebug()<<"saved";
+
+}
+
+void MainWindow::loadParameters(void)
+{
+    QString line;
+    QStringList fields;
+    bool test;
+    int value;
+    QFile param( QCoreApplication::applicationDirPath() +"/"+"config.cfg");
+    if (!param.open(QIODevice::ReadOnly | QIODevice::Text))
+        qDebug()<<"config file not found";
+
+    while(!param.atEnd()) {
+        line = param.readLine();
+        line.remove("\n");
+
+        fields = line.split("=");
+
+        if(fields.length()==2)
+        {
+            value = fields[1].toInt(&test);
+
+            if((fields[0].contains("width"))&&(test))
+                ui->spinWidth->setValue(value);
+            else if(fields[0].contains("height"))
+                ui->spinHeight->setValue(value);
+            else if(fields[0].contains("resolution"))
+                ui->spinRes->setValue(value);
+            else if(fields[0].contains("threshold_zone"))
+                ui->spinThresholdZone->setValue(value);
+            else if(fields[0].contains("threshold_sat"))
+                ui->spinThreshold->setValue(value);
+            else if(fields[0].contains("exposition"))
+                ui->spinExposition->setValue(value);
+            else
+                qDebug()<<"unknown parameter";
+
+            test = false;
+        }
+    }
+
+    param.close();
+
+    initialStart = true;
+}
 
 void MainWindow::init()
 {
@@ -85,8 +165,6 @@ void MainWindow::init()
     c.value = exposition;
     v4l2_ioctl(descriptor, VIDIOC_S_CTRL, &c);
 
-
-
     resolution = ui->spinRes->value();
     if(resolution <= 0) resolution = 1;
 
@@ -98,41 +176,73 @@ void MainWindow::init()
     if(thresholdZone <= 0) thresholdZone = 1;
 
 
-    lbl_imageSnap = new Mask(this,resolution);
+    lbl_imageSnap = new Mask(this,resolution,initialStart);
     lbl_imageSnap->setStyleSheet("border: 2px solid black");
     lbl_imageSnap->show();
 
+    initialStart = false;
+
+
     connect(ui->bSave,SIGNAL(pressed()),lbl_imageSnap,SLOT(saveZones()));
     connect(ui->bLoad,SIGNAL(pressed()),lbl_imageSnap,SLOT(loadZones()));
+    connect(this,SIGNAL(reload()),lbl_imageSnap,SLOT(loadZones()));
+
+
+    connect(com,SIGNAL(signalStart()),lbl_imageSnap,SLOT(loadZones()));
+
     connect(ui->bSelect,SIGNAL(pressed()),lbl_imageSnap,SLOT(selectAllZones()));
     connect(ui->bUnselect,SIGNAL(pressed()),lbl_imageSnap,SLOT(unselectAllZones()));
-
-
 
     lbl_imageDiff = new QLabel(this);
     lbl_imageDiff->setStyleSheet("border: 2px solid black");
     lbl_imageDiff->show();
 
-    markers.resize( resolution ,std::vector<mark*>( resolution , NULL ) );
-
     w = ui->spinWidth->value();
     h = ui->spinHeight->value();
 
     cam = new camera_c(this,w,h,resolution,threshold,thresholdZone);
-   // cam = new camera_c(this,WIDTH,HEIGHT,resolution,threshold,thresholdZone);
+    connect(ui->radioEnabled,SIGNAL(clicked(bool)),cam,SLOT(enable(bool)));
+    connect(ui->radioEnabled,SIGNAL(clicked(bool)),this,SLOT(clearDetected()));
+    connect(com,SIGNAL(signalEnable(bool)),cam,SLOT(enable(bool)));
+
     cam->start();
-   // connect(cam,SIGNAL(setSize(int,int)),this,SLOT(setSize(int,int)));
+    cam->enabled = false;
+    connect(cam,SIGNAL(triggerSignal()),com,SLOT(triggerSlot()));
 
     setSize(WIDTH,HEIGHT);
+
+    emit testCom(msgPing);
 }
 
+void MainWindow::setUpMarkers(void)
+{
 
+    double dx = (double)width/resolution;
+    double dy = (double)height/resolution;
+
+    //  qDebug()<<"dx marker "<<dx;
+
+
+    markers.resize( resolution ,std::vector<mark*>( resolution , NULL ) );
+
+
+    for (unsigned int xi = 0;xi<markers.size();xi++)
+        for (unsigned int yi = 0;yi<markers[0].size();yi++)
+        {
+            markers[xi][yi] = new mark(this,dx/2 + 40+xi*dx,dy/2+20+yi*dy,5);
+            markers[xi][yi]->hide();
+
+        }
+
+}
 
 void MainWindow::setSize(int w, int h)
 {
 
-    int dx = w/resolution;
-    int dy = h/resolution;
+    width = w;
+    height = h;
+
+
 
     QRect rect2(40 , 20, w,h);
     lbl_imageSnap->setGeometry(rect2);
@@ -141,21 +251,11 @@ void MainWindow::setSize(int w, int h)
 
 
 
-    for (int xi = 0;xi<resolution;xi++)
-    {
-        for (int yi = 0;yi<resolution;yi++)
-        {
-            markers[xi][yi] = new mark(this,dx/2 + 40+xi*dx,dy/2+20+yi*dy,5);
-            markers[xi][yi]->hide();
-
-        }
-    }
+    setUpMarkers();
 
     lbl_imageSnap->redraw();
 
 }
-
-
 
 void MainWindow::restart()
 {
@@ -164,27 +264,102 @@ void MainWindow::restart()
 
 }
 
+void MainWindow::reset(void)
+{
+    restart();
+
+    QTimer::singleShot(4000,this,SIGNAL(reload()));
+    cam->enabled = false;
+}
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+
+    com = new sharedCom(this);
+    connect(this,SIGNAL(testCom(char)),com,SLOT(sendData(char)));
+    connect(com,SIGNAL(signalReset()),this,SLOT(reset()));
+
+    com->start();
 
     connect(ui->bRestart,SIGNAL(pressed()),this,SLOT(restart()));
     connect(ui->bShutdown,SIGNAL(pressed()),this,SLOT(close()));
     connect(ui->bClearDetection,SIGNAL(pressed()),this,SLOT(clearDetected()));
     connect(ui->radioDisplay,SIGNAL(clicked(bool)),this,SLOT(updateDisplay(bool)));
 
+    connect(ui->bSnap,SIGNAL(pressed()),this,SLOT(snapAndSave()));
+
+
+    imageFileName = QCoreApplication::applicationDirPath() +"/"+ "snap.png";
+
+    loadParameters();
+    prepZoneFile(QCoreApplication::arguments());
     init();
 
 
 }
 
-
-
-
-void MainWindow::setMarkerVisible(int x,int y,bool status)
+void MainWindow::prepZoneFile(QStringList cmdline_args)
 {
-    if(x>=resolution) return;
-    if(y>=resolution) return;
+    int nures;
+    QString line;
+    QStringList fields;
+
+    if(cmdline_args.size()>1)
+    {
+        QStringList buf;
+        buf = cmdline_args[1].split(".");
+        if(buf.size()==2)
+        {
+            if(buf[1] == "txt")
+                zoneFileName = cmdline_args[1];
+        }
+    }
+
+    zoneFileName = QCoreApplication::applicationDirPath() +"/"+ zoneFileName;
+
+
+
+
+
+   // zoneFileName = "/home/pi/qt5/test/zones42.txt";
+    QFile file(zoneFileName);
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qDebug()<<"cannot open zones file";
+        return;
+    }
+
+    line = file.readLine();
+    fields = line.split("=");
+    if(fields.length()==2)
+    {
+        if(fields[0]=="res")
+        {
+            nures = fields[1].toInt();
+            if((nures<=0)||(nures>50))
+            {
+                qDebug()<<"invalid resolution: "<<nures;
+                return;
+            }
+            resolution = nures;
+            ui->spinRes->setValue(resolution);
+        }
+    }
+    else
+    {
+        qDebug()<<"cannot read resolution";
+        return;
+    }
+    file.close();
+}
+
+void MainWindow::setMarkerVisible(unsigned int x,unsigned int y,bool status)
+{
+    if(x>=markers.size()) return;
+    if(y>=markers[0].size()) return;
 
     if(status)
         markers[x][y]->show();
@@ -195,15 +370,10 @@ void MainWindow::setMarkerVisible(int x,int y,bool status)
 void MainWindow::clearDetected(void)
 {
 
-    for (int xi = 0;xi<resolution;xi++)
-    {
-        for (int yi = 0;yi<resolution;yi++)
-        {
-
+    for (unsigned int xi = 0;xi<markers.size();xi++)
+        for (unsigned int yi = 0;yi<markers[0].size();yi++)
             markers[xi][yi]->hide();
 
-        }
-    }
 
 }
 
@@ -215,7 +385,7 @@ void MainWindow::dataAvailable(int type)
     }
     else if(type==2)
     {
-        //lbl_imageSnap->setText("test");
+
         QImage img2 = cam->qImageSnap.scaled(WIDTH,HEIGHT,Qt::KeepAspectRatio);
         lbl_imageSnap->setImg(img2);
         clearDetected();
@@ -226,8 +396,8 @@ void MainWindow::dataAvailable(int type)
 
         if(ui->radioDisplay->isChecked())
         {
-        QPixmap img2 = cam->consumer->pixmapImageDiff.scaled(WIDTH,HEIGHT,Qt::KeepAspectRatio);
-        lbl_imageDiff->setPixmap(img2);
+            QPixmap img2 = cam->consumer->pixmapImageDiff.scaled(WIDTH,HEIGHT,Qt::KeepAspectRatio);
+            lbl_imageDiff->setPixmap(img2);
 
         }
         emit acknowledgeData();
@@ -238,10 +408,13 @@ void MainWindow::dataAvailable(int type)
 
 void MainWindow::keyPressEvent(QKeyEvent* e)
 {
+
     emit snap();
+
 }
 
 MainWindow::~MainWindow()
 {
+    saveParameters();
     delete ui;
 }

@@ -268,7 +268,7 @@ zone</string>
      <string>Display</string>
     </property>
     <property name="checked">
-     <bool>true</bool>
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QLabel" name="label_5">
@@ -300,7 +300,7 @@ zone</string>
      <number>2048</number>
     </property>
     <property name="value">
-     <number>480</number>
+     <number>240</number>
     </property>
    </widget>
    <widget class="QSpinBox" name="spinWidth">
@@ -319,7 +319,7 @@ zone</string>
      <number>2048</number>
     </property>
     <property name="value">
-     <number>640</number>
+     <number>320</number>
     </property>
    </widget>
    <widget class="QLabel" name="label_6">
@@ -333,6 +333,38 @@ zone</string>
     </property>
     <property name="text">
      <string>Width</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="bSnap">
+    <property name="geometry">
+     <rect>
+      <x>590</x>
+      <y>810</y>
+      <width>161</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>snap</string>
+    </property>
+    <property name="shortcut">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="radioEnabled">
+    <property name="geometry">
+     <rect>
+      <x>820</x>
+      <y>890</y>
+      <width>117</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>enabled</string>
+    </property>
+    <property name="autoExclusive">
+     <bool>false</bool>
     </property>
    </widget>
   </widget>
