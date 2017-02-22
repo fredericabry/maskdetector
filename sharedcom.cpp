@@ -25,20 +25,41 @@ void sharedCom::run()
     // give your shared memory an id, anything will do
     key_t keyIn = 111222;
     key_t keyOut = 111333;
+    key_t keyData = 111444;
 
     //C++ to python:
     // Setup shared memory, 1 is the size
     if ((shmidOut = shmget(keyOut, 1, IPC_CREAT | 0666)) < 0)
     {
-        qDebug()<<"Error getting shared memory id";
+        qDebug()<<"Error getting shared memory id c2p";
         exit(1);
     }
     // Attached shared memory
     if ((outMemory = (char*)shmat(shmidOut, NULL, 0)) == (char *) -1)
     {
-        qDebug()<<"Error attaching shared memory id";
+        qDebug()<<"Error attaching shared memory id c2p";
         exit(1);
     }
+
+
+
+    //data
+    // Setup shared memory, 1 is the size
+    if ((shmidData = shmget(keyData, 1, IPC_CREAT | 0666)) < 0)
+    {
+        qDebug()<<"Error getting shared memory id c2p";
+        exit(1);
+    }
+    // Attached shared memory
+    if ((dataMemory = (char*)shmat(shmidData, NULL, 0)) == (char *) -1)
+    {
+        qDebug()<<"Error attaching shared memory id c2p";
+        exit(1);
+    }
+
+
+
+
 
     //Python to C++
     // Setup shared memory, 1 is the size
@@ -82,21 +103,25 @@ void sharedCom::run()
 
 }
 
-void sharedCom::sendData(char data)
+void sharedCom::sendMsg(char data)
 {
-
-
     sem_wait(semOut);
-
-
     bufOut = data;
-
     memcpy(outMemory,&bufOut, sizeof(char));
-
     sem_post(semOut);
 
+}
+
+
+void sharedCom::sendData(char data)
+{
+    sem_wait(semOut);
+    bufData = data;
+    memcpy(dataMemory,&bufData, sizeof(char));
+    sem_post(semOut);
 
 }
+
 
 void sharedCom::watchData(void)
 {
@@ -108,7 +133,7 @@ void sharedCom::watchData(void)
     {
         switch(bufIn)
         {
-        case msgPing:sendData(msgPong);break;
+        case msgPing:sendMsg(msgPong);break;
         case msgPong:qDebug()<<"pong";break;
         case msgQuit:((MainWindow*)parent)->close();break;
         case msgReset:emit signalReset();break;
@@ -124,10 +149,11 @@ void sharedCom::watchData(void)
 
 }
 
-void sharedCom::triggerSlot(void)
+void sharedCom::triggerSlot(int nb)
 {
 
-    sendData(msgLose);
+    sendData(nb);
+    sendMsg(msgLose);
 
 }
 

@@ -24,6 +24,9 @@ QElapsedTimer telapsed;
 
 camera_c::camera_c(QObject *parent, int width, int height, int res, int threshold, int thresholdZone):parent(parent),width(width),height(height),resolution(res),threshold(threshold),thresholdZone(thresholdZone)
 {
+
+    isLearning = false;
+
     connect(parent,SIGNAL(snap()),this,SLOT(snap()));
     connect(this,SIGNAL(dataReady(int)),parent,SLOT(dataAvailable(int)));
 
@@ -36,6 +39,9 @@ camera_c::camera_c(QObject *parent, int width, int height, int res, int threshol
     connect(consumer,SIGNAL(setMarkerVisible(uint,uint,bool)),parent,SLOT(setMarkerVisible(uint,uint,bool)));
 
     consumer->start();
+
+    qDebug()<<thread();
+    qDebug()<<consumer->thread();
 
 }
 
@@ -54,7 +60,7 @@ void camera_c::run(void)
 
 void camera_c::init()
 {
-    //NEEDED ON RASPI : sudo modprobe bcm2835-v4l2
+    //NEEDED ON RASPI : sud
 
     capture = new VideoCapture(0);
 
@@ -213,25 +219,57 @@ void cameraConsumer_c::dataReceived(void)
 
 void cameraConsumer_c::checkZones(void)
 {
+    int zoneCmpt = 0;
 
-    for (int xi = 0;xi<resolution;xi++)
-        for (int yi = 0;yi<resolution;yi++)
-        {
-            if(((MainWindow*)parent)->lbl_imageSnap->isZoneMarked(xi,yi))
+    if(controler->isLearning)
+    {
+        for (int xi = 0;xi<resolution;xi++)
+            for (int yi = 0;yi<resolution;yi++)
             {
-
-                if(getZoneValue(xi,yi)<255-thresholdZone)
+                if(((MainWindow*)parent)->lbl_imageSnap->isZoneMarked(xi,yi))
                 {
-                    emit setMarkerVisible(xi,yi,true);
-                    emit controler->triggerSignal();
+
+                    if(getZoneValue(xi,yi)<255-thresholdZone)
+                    {
+
+                        controler->detectedZone[xi][yi] = true;
+                        emit setMarkerVisible(xi,yi,true);
+
+                    }
+
+
+
                 }
-                else
-                    emit setMarkerVisible(xi,yi,false);
-
-
             }
-        }
 
+    }
+    else
+    {
+
+        for (int xi = 0;xi<resolution;xi++)
+            for (int yi = 0;yi<resolution;yi++)
+            {
+                if(((MainWindow*)parent)->lbl_imageSnap->isZoneMarked(xi,yi))
+                {
+
+                    if(getZoneValue(xi,yi)<255-thresholdZone)
+                    {
+
+
+                        emit setMarkerVisible(xi,yi,true);
+                        zoneCmpt ++;
+                    }
+                    else
+                        emit setMarkerVisible(xi,yi,false);
+
+
+                }
+            }
+
+
+        if(zoneCmpt>0)
+            emit controler->triggerSignal(zoneCmpt);
+    }
 
 }
 
@@ -260,4 +298,21 @@ void cameraConsumer_c::setSize(int w, int h)
 
 }
 
+
+void camera_c::startLearning(void)
+{
+    isLearning = true;
+
+    detectedZone.resize( resolution ,std::vector<bool>( resolution , false ) );
+
+}
+
+
+void camera_c::stopLearning(void)
+{
+
+    isLearning = false;
+    sendZone(detectedZone);
+
+}
 

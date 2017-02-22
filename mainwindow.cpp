@@ -207,7 +207,9 @@ void MainWindow::init()
 
     cam->start();
     cam->enabled = false;
-    connect(cam,SIGNAL(triggerSignal()),com,SLOT(triggerSlot()));
+    connect(cam,SIGNAL(triggerSignal(int)),com,SLOT(triggerSlot(int)));
+
+    connect(cam,SIGNAL(sendZone(std::vector<std::vector<bool> >)),lbl_imageSnap,SLOT(selectZone(std::vector<std::vector<bool> >)));
 
     setSize(WIDTH,HEIGHT);
 
@@ -261,7 +263,7 @@ void MainWindow::restart()
 {
     //clean chain destruction
     cam->shutdown();
-
+    ui->radioEnabled->setChecked(false);
 }
 
 void MainWindow::reset(void)
@@ -271,7 +273,7 @@ void MainWindow::reset(void)
     QTimer::singleShot(4000,this,SIGNAL(reload()));
     cam->enabled = false;
 }
-
+QTimer test;
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -290,6 +292,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
 
     connect(ui->bSnap,SIGNAL(pressed()),this,SLOT(snapAndSave()));
 
+    connect(ui->bAutoLearn,SIGNAL(pressed()),this,SLOT(autoLearn()));
+    autoLearnStatus= false;
 
     imageFileName = QCoreApplication::applicationDirPath() +"/"+ "snap.png";
 
@@ -298,7 +302,45 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
     init();
 
 
+
 }
+
+
+void MainWindow::autoLearn(void)
+{
+
+    autoLearnStatus= !autoLearnStatus;
+
+
+
+    if(autoLearnStatus)
+    {
+    ui->bAutoLearn->setText("stop");
+    cam->startLearning();
+    }
+    else
+    {
+    ui->bAutoLearn->setText("start");
+    cam->stopLearning();
+
+    double dx = (double)width/resolution;
+    double dy = (double)height/resolution;
+
+
+    for (unsigned int xi = 0;xi<markers.size();xi++)
+        for (unsigned int yi = 0;yi<markers[0].size();yi++)
+        {
+               markers[xi][yi]->hide();
+
+        }
+
+    }
+
+
+
+}
+
+
 
 void MainWindow::prepZoneFile(QStringList cmdline_args)
 {

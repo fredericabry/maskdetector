@@ -367,6 +367,35 @@ zone</string>
      <bool>false</bool>
     </property>
    </widget>
+   <widget class="QPushButton" name="bAutoLearn">
+    <property name="geometry">
+     <rect>
+      <x>870</x>
+      <y>960</y>
+      <width>161</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>start</string>
+    </property>
+    <property name="shortcut">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_7">
+    <property name="geometry">
+     <rect>
+      <x>910</x>
+      <y>940</y>
+      <width>101</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Auto learn</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">

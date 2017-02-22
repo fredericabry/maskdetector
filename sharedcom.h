@@ -27,9 +27,9 @@ public:
 private:
     QObject *parent;
     QTimer *watchTimer;
-    char *inMemory,*outMemory;
-    int shmidOut,shmidIn;
-    char bufOut,bufIn;
+    char *inMemory,*outMemory,*dataMemory;
+    int shmidOut,shmidIn,shmidData;
+    char bufOut,bufIn,bufData;
     void createsem(int *sid, key_t key);
     void locksem(int sid);
     void unlocksem(int sid);
@@ -37,9 +37,10 @@ private:
     int sem_id;
     sem_t *semOut,*semIn;
 private slots:
+    void sendMsg(char data);
     void sendData(char data);
     void watchData();
-    void triggerSlot();
+    void triggerSlot(int nb);
 signals:
     void signalReset(void);
     void signalStart(void);

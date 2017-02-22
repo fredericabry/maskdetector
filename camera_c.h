@@ -81,7 +81,10 @@ public:
     double dx;
     double dy;
     bool enabled;
-
+    void startLearning(void);
+    void stopLearning(void);
+    bool isLearning;
+    std::vector<std::vector<bool> > detectedZone;
 private:
 
     int width;
@@ -91,11 +94,15 @@ private:
     int threshold;
     int thresholdZone;
 
+
+
+
 signals:
     void dataReady(int);
-    void triggerSignal();
+    void triggerSignal(int);
     void setSize(int,int);
     void startProcess();
+    void sendZone(std::vector<std::vector<bool> >);
 public slots:
     int getZoneValue(int X,int Y);
 

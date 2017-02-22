@@ -41,6 +41,7 @@ private slots:
     void unselectAllZones();
     void loadZones();
     void saveZones();
+    void selectZone(std::vector<std::vector<bool> >);
 };
 
 

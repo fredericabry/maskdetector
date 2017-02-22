@@ -71,6 +71,7 @@ private:
     void loadParameters();
     void prepZoneFile(QStringList cmdline_args);
     bool initialStart;
+    bool autoLearnStatus;
 
 private slots:
     void dataAvailable(int);
@@ -82,6 +83,7 @@ private slots:
     void setSize(int w, int h);
     void snapAndSave(void);
     void reset(void);
+    void autoLearn(void);
 
 
 signals:

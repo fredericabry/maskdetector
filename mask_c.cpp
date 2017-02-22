@@ -109,6 +109,31 @@ void Mask::selectAllZones(void)
     redraw();
 }
 
+
+
+void Mask::selectZone(std::vector<std::vector<bool>> Zone)
+{
+
+    qDebug()<<"select";
+
+    for (int xi = 0;xi<resolution;xi++)
+        for (int yi = 0;yi<resolution;yi++)
+        {
+
+            markedZone[xi][yi] = !Zone[xi][yi];
+
+        }
+    redraw();
+
+}
+
+
+
+
+
+
+
+
 void Mask::unselectAllZones(void)
 {
     for (int xi = 0;xi<resolution;xi++)
